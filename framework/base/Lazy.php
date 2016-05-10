@@ -6,6 +6,11 @@ namespace yii\base;
  * The Lazy object works as a wrapper around dependencies that are expensive to instantiate.
  * Instead of instantiating the required dependency immediately,
  * it will only be done once it is used for the first time.
+ * This class is inspired by the .NET Framework class with the same name:
+ * https://msdn.microsoft.com/en-us/library/dd642331%28v=vs.110%29.aspx
+ * > Use lazy initialization to defer the creation of a large or resource-intensive object,
+ * > or the execution of a resource-intensive task, particularly when such creation or execution
+ * > might not occur during the lifetime of the program.
  *
  * Example:
  *
@@ -35,10 +40,12 @@ namespace yii\base;
  *           function actionIndex()
  *           {
  *               $someModel = $this->cheapRepo->getSome();
- * //first call to getInstance() lazily instantiates BloatedService
- *               $this->costlyService->getInstance()->workOn($someModel);
+ *               if ($someModel->needsWorkDone()) {
+ * //first call to getInstance() lazily instantiates BloatedService now it is needed
+ *                   $this->costlyService->getInstance()->workOn($someModel);
  * //subsequent calls to getInstance() use cached instance of BloatedService
- *               $this->costlyService->getInstance()->workSomeMoreOn($someModel);
+ *                   $this->costlyService->getInstance()->workSomeMoreOn($someModel);
+ *               }
  *               return $this->render("index", ['model' => $someModel]);
  *           }
  *       }
