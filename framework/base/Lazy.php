@@ -2,7 +2,8 @@
 namespace yii\base;
 
 /**
- * Lazy is used for constructor injection with the dependency injection container. 
+ * Lazy is intended for constructor injection of resource-intensive dependencies.
+ * It can be used with or without a Dependency Injection Container.
  * The Lazy object works as a wrapper around dependencies that are expensive to instantiate.
  * Instead of instantiating the required dependency immediately,
  * it will only be done once it is used for the first time.
@@ -17,7 +18,9 @@ namespace yii\base;
  * -- in the dependency injection configuration during bootstrapping
  * -- register an alias for an expensive dependency
  * 
- *       \Yii::$container->set('expensiveService', 'app\models\BloatedService');
+ *    // class BloatedService implements BloatedServiceInterface
+ *       \Yii::$container->set('app\models\BloatedServiceInterface', 'app\models\BloatedService');
+ *       \Yii::$container->set('expensiveService', 'app\models\BloatedServiceInterface');
  *
  * -- then use the alias as a constructor parameter name where the dependency is required
  *
@@ -27,13 +30,13 @@ namespace yii\base;
  *       
  *           function __construct($id, $module,
  *               \app\models\SomeRepository $cheapRepository,
- * // type must be \yii\base\Lazy and parameter name must match registered alias
+ *    // type must be \yii\base\Lazy and parameter name must match registered alias
  *               \yii\base\Lazy $expensiveService,
  *               $config = [])
  *           {
  *               parent::__construct($id, $module, $config);
  *               $this->cheapRepo = $cheapRepository;
- * // an 'empty' Lazy wrapper is injected
+ *    // an 'empty' Lazy wrapper is injected
  *               $this->costlyService = $expensiveService;
  *           }
  *       
@@ -41,27 +44,52 @@ namespace yii\base;
  *           {
  *               $someModel = $this->cheapRepo->getSome();
  *               if ($someModel->needsWorkDone()) {
- * //first call to getInstance() lazily instantiates BloatedService now it is needed
+ *    // first call to getInstance() lazily instantiates BloatedService now it is needed
  *                   $this->costlyService->getInstance()->workOn($someModel);
- * //subsequent calls to getInstance() use cached instance of BloatedService
+ *    // subsequent calls to getInstance() use cached instance of BloatedService
  *                   $this->costlyService->getInstance()->workSomeMoreOn($someModel);
  *               }
  *               return $this->render("index", ['model' => $someModel]);
  *           }
  *       }
+ *
+ * -- for easy testing (without Dependency Injection Container) just pass a callable function returning a mock/fake instance of a dependency
+ *       $controller = new SiteController(
+ *           new SomeRepositoryFake(),
+ *    // class BloatedServiceMock implements BloatedServiceInterface
+ *           new Lazy(function () { return new BloatedServiceMock(); }));
+ *
+ * -- OR for easy testing (with Dependency Injection Container) just pass the type of a mock/fake instance of a dependency
+ *       $controller = new SiteController(
+ *           new SomeRepositoryFake(),
+ *    // class BloatedServiceMock implements BloatedServiceInterface
+ *           new Lazy('tests\BloatedServiceMock'));
+ *
  */ 
 class Lazy
 {
-    private $alias, $instance;
+    private $instance, $getter;
 
     /**
      * Creates the lazy wrapper.
-     * @param string $alias An alias for a type registered with the dependency injection container.
+     * @param mixed $getter This will be used to instantiate the dependency and can be
+     * - an anonymous function without parameters
+     * - a callable in array format (`[$object, 'methodName']`)
+     * - [if using Dependency Injection] a type (class or interface) name or an alias name that was previously registered via [[yii\di\Container::set()]]
      * @return Lazy The Lazy wrapper instance.
      */
-    function __construct($alias)
+    function __construct($getter)
     {
-        $this->alias = $alias;
+        $this->getter = static::isUserFunction($getter) ?
+            $getter :
+            function () use ($getter) {
+                return \Yii::$container->get($getter);
+            };
+    }
+
+    private static function isUserFunction($value)
+    {
+        return $value instanceof \Closure || is_array($value) && is_callable($value);
     }
 
     /**
@@ -72,7 +100,7 @@ class Lazy
     function getInstance()
     {
         if($this->instance === null) {
-            $this->instance = \Yii::$container->get($this->alias);
+            $this->instance = call_user_func($this->getter);
         }
 
         return $this->instance;
