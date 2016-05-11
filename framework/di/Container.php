@@ -13,6 +13,7 @@ use yii\base\Component;
 use yii\base\InvalidConfigException;
 use yii\base\Lazy;
 use yii\helpers\ArrayHelper;
+use yii\helpers\StringHelper;
 
 /**
  * Container implements a [dependency injection](http://en.wikipedia.org/wiki/Dependency_injection) container.
@@ -98,6 +99,8 @@ use yii\helpers\ArrayHelper;
  */
 class Container extends Component
 {
+    const LAZY_CONSTRUCTOR_PARAMETER_PREFIX = 'lazy_';
+
     /**
      * @var array singleton objects indexed by their types
      */
@@ -447,13 +450,15 @@ class Container extends Component
         foreach ($dependencies as $index => $dependency) {
             if ($dependency instanceof Instance) {
                 if ($dependency->id !== null) {
-                    $dependencies[$index] = $dependency->id === Lazy::className() ?
-                        new Lazy(static::getConstructorParameterName($reflection, $index)) :
-                        $this->get($dependency->id);
+                    $dependencies[$index] = $this->get($dependency->id);
                 } elseif ($reflection !== null) {
                     $name = static::getConstructorParameterName($reflection, $index);
-                    $class = $reflection->getName();
-                    throw new InvalidConfigException("Missing required parameter \"$name\" when instantiating \"$class\".");
+                    if (StringHelper::startsWith($name, static::LAZY_CONSTRUCTOR_PARAMETER_PREFIX)) {
+                        $dependencies[$index] = new Lazy(str_replace(static::LAZY_CONSTRUCTOR_PARAMETER_PREFIX, '', $name));
+                    } else {
+                        $class = $reflection->getName();
+                        throw new InvalidConfigException("Missing required parameter \"$name\" when instantiating \"$class\".");
+                    }
                 }
             }
         }

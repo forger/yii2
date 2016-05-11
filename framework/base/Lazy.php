@@ -30,14 +30,14 @@ namespace yii\base;
  *       
  *           function __construct($id, $module,
  *               \app\models\SomeRepository $cheapRepository,
- *    // type must be \yii\base\Lazy and parameter name must match registered alias
- *               \yii\base\Lazy $expensiveService,
+ *    // parameter must not be typed and its name must match the registered alias prefixed with 'lazy_'
+ *               $lazy_expensiveService,
  *               $config = [])
  *           {
  *               parent::__construct($id, $module, $config);
  *               $this->cheapRepo = $cheapRepository;
  *    // an 'empty' Lazy wrapper is injected
- *               $this->costlyService = $expensiveService;
+ *               $this->costlyService = $lazy_expensiveService;
  *           }
  *       
  *           function actionIndex()
