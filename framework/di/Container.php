@@ -99,7 +99,8 @@ use yii\helpers\StringHelper;
  */
 class Container extends Component
 {
-    const LAZY_CONSTRUCTOR_PARAMETER_PREFIX = 'lazy_';
+    const LAZY_CONSTRUCTOR_PARAMETER_PREFIX = 'lazy_',
+        DI_ALIAS_CONSTRUCTOR_PARAMETER_PREFIX = 'alias_';
 
     /**
      * @var array singleton objects indexed by their types
@@ -455,6 +456,8 @@ class Container extends Component
                     $name = static::getConstructorParameterName($reflection, $index);
                     if (StringHelper::startsWith($name, static::LAZY_CONSTRUCTOR_PARAMETER_PREFIX)) {
                         $dependencies[$index] = new Lazy(str_replace(static::LAZY_CONSTRUCTOR_PARAMETER_PREFIX, '', $name));
+                    } elseif (StringHelper::startsWith($name, static::DI_ALIAS_CONSTRUCTOR_PARAMETER_PREFIX)) {
+                        $dependencies[$index] = $this->get(str_replace(static::DI_ALIAS_CONSTRUCTOR_PARAMETER_PREFIX, '', $name));
                     } else {
                         $class = $reflection->getName();
                         throw new InvalidConfigException("Missing required parameter \"$name\" when instantiating \"$class\".");
